@@ -6,12 +6,12 @@ rs_process_x86_64_mmx:
 #	push		%rsi
 #	push		%rdi
 	push		%rbx
+	#r8-11 can be modified
 
 	mov			%rcx, %rbp						# combined multiplication table
 	mov			%rdx, %rcx						# number of bytes to process (multiple of 8)
 
 	movq			(%rsi), %rdx					# load 1st 8 source bytes
-#	movd		4(%rsi), %mm4
 
 	sub			$8, %rcx						# reduce # of loop iterations by 1
 	jz			last8
@@ -45,13 +45,11 @@ loop:
 	shr			$16, %rdx
 	movd		0x0400(%rbp, %rbx, 4), %mm1
 	movzx		%dl, %eax
-#	movq		0(%rdi, %rcx, 1), %mm5
 	movzx		%dh, %ebx
-	movd		0x0000(%rbp, %rax, 4), %mm2
+	movd		-2(%rbp, %rax, 4), %mm2
 	shr			$16, %rdx
-#	movd		%mm4, %edx
 	movzx		%dl, %eax
-	movd		0x0400(%rbp, %rbx, 4), %mm3
+	movd		0x0400-2(%rbp, %rbx, 4), %mm3
 	movzx		%dh, %ebx
 	shr			$16, %rdx
 	punpckldq	0x0000(%rbp, %rax, 4), %mm0
@@ -59,17 +57,14 @@ loop:
 	punpckldq	0x0400(%rbp, %rbx, 4), %mm1
 	movzx		%dh, %ebx
 		movq		8(%rsi, %rcx, 1), %rdx			# read-ahead next 8 source bytes
-	punpckldq	0x0000(%rbp, %rax, 4), %mm2
+	punpckldq	-2(%rbp, %rax, 4), %mm2
 	pxor		%mm0, %mm1
-	punpckldq	0x0400(%rbp, %rbx, 4), %mm3
-#	movd		%mm4, %edx						# prepare src bytes 3-0 for next loop
-#	pxor		%mm5, %mm1
+	punpckldq	0x0400-2(%rbp, %rbx, 4), %mm3
 	pxor		%mm2, %mm3
-	psllq		$16, %mm3
-#	psrlq		$32, %mm4						# align src bytes 7-4 for next loop
+#	psllq		$16, %mm3		# unneeded: LUT loads offset by -2 to get pre-shifted
 	pxor		%mm3, %mm1
-	pxor		0(%rdi, %rcx, 1), %mm1
-	movq		%mm1, 0(%rdi, %rcx, 1)
+	pxor		(%rdi, %rcx), %mm1
+	movq		%mm1, (%rdi, %rcx)
 
 	add			$8, %rcx
 	jnz			loop
