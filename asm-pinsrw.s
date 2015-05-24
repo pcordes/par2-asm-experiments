@@ -27,7 +27,7 @@ rs_process_pinsrw128:
 	# vpinsrw		$0x3,(%rcx,%r11,4),%xmm10,%xmm12  # 7B
 	# freeing up more low regs would seem to require more prologue to shuffle rsi and rdi
 	# so don't bother unless optimizing for something without a uop cache
-	# or could use rax or rbx, but then we'd lose the nice readability, and get move %ch, %rbp or something
+	# or could use rax or rbx, but then we'd lose the nice readability, and get mov %ch, %rbp or something
 
 	mov			%rcx, %rbp						# combined multiplication table.
 	mov			%rdx, %r11						# number of bytes to process (multiple of 16)
@@ -66,56 +66,57 @@ loop:
 	movd		0x0000(%rbp, %rax, 4), %xmm0		# There is no movw to vector reg.  upper 16 has garbage.  (and can cacheline-split)
 	movd		0x0400(%rbp, %rbx, 4), %xmm1		# use movd over pinsrw anyway, to break the dependency chain.  (and one less uop)
 
+	# it seems to be a slowdown to rearrange things to alternate rdx and rcx blocks.  Maybe having a movd block after a pinsrw block is good?
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	shr			$16, %rdx
 	pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm0
+	 movzx		%cl, %eax
 	pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm1
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
-	movd		0x0000(%rbp, %rax, 4), %xmm2		# separate dep chain for the other 8 src bytes costs 2 uops (pxor + punpck)
-	movd		0x0400(%rbp, %rbx, 4), %xmm3		# but movd is cheaper than pinsrw, so no uop savings.  (It is slightly faster)
+	 movzx		%ch, %ebx
+	 movd		0x0000(%rbp, %rax, 4), %xmm2		# separate dep chain for the other 8 src bytes costs 2 uops (pxor + punpck)
+	 shr			$16, %rcx
+	 movd		0x0400(%rbp, %rbx, 4), %xmm3		# but movd is cheaper than pinsrw.  No net uop diff.  (It is slightly faster)
 
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
-	shr			$16, %rdx
 	pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0
+	 movzx		%cl, %eax
+	shr			$16, %rdx
 	pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm1
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
-	pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm2
-	pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm3
-
+	 movzx		%ch, %ebx
+	 pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm2
+	 shr			$16, %rcx
 	movzx		%dl, %eax
+	 pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm3
+
 	movzx		%dh, %ebx
 	pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm0
+	 movzx		%cl, %eax
 	pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm1
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
+	 movzx		%ch, %ebx
+	 shr			$16, %rcx
 		movq		16(%rsi, %r11), %rdx			# read-ahead for next iter
-	pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm2
-	pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm3
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm2
-	pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm3
+	 pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm2
+	 pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm3
+	 movzx		%cl, %eax
+	 movzx		%ch, %ebx
+	pxor		%xmm1, %xmm0
+	 pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm2
+	 pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm3
 
-	pxor		%xmm0, %xmm1
-	pxor		%xmm2, %xmm3
-#	movlhps		%xmm3, %xmm1	# runs on p5 only
-	punpcklqdq	%xmm3, %xmm1	# runs on p1 / p5, same as pinsrw (SnB)
+	 pxor		%xmm3, %xmm2
+#	movlhps		%xmm2, %xmm0	# runs on p5 only
+	punpcklqdq	%xmm2, %xmm0	# runs on p1 / p5, same as pinsrw (SnB)
 
-#	movq		0(%rdi, %r11, 1), %xmm5
-#	pxor		%xmm5, %xmm1
-	pxor		(%rdi, %r11), %xmm1
-	movdqu		%xmm1, 0(%rdi, %r11, 1)
-#	movq		%xmm1, 0(%rdi, %r11, 1)
+#	movq		(%rdi, %r11), %xmm5
+#	pxor		%xmm5, %xmm0
+	pxor		(%rdi, %r11), %xmm0
+	movdqu		%xmm0, (%rdi, %r11)
+#	movq		%xmm0, (%rdi, %r11)
 
 	add			$16, %r11
 	jnz			loop
@@ -124,8 +125,9 @@ loop:
 	# handle final iteration separately (so that a read beyond the end of the input/output buffer is avoided)
 	#
 last8:
-
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
+	# still using the longer-dep-chain PINSRW all the way, instead of 2 chains and punpck Q->DQ
+	# TODO: update last iter code to whatever proves fastest in the loop, with loads for next iter commented out
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	shr			$16, %rdx
