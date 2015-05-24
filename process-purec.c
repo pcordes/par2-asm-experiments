@@ -19,6 +19,9 @@ union wordbytes { uint16_t w; uint8_t b[2]; };
 /* gcc 4.9: 64b version is slower than 32b
  * because the compiler won't s0 >>= 16, but instead does a lot of extra reg-reg moves
  * The 32bit version does load32; movzx %al/%ah; shr $16; movzx %al/%ah, like it should
+ *
+ * Clang 3.5 for 32b version: uses 4 insn (mov, shr, movzx;  shr) instead of 3 to unpack the high 16 of each 32b load
+ * And doesn't unroll, so a lot of loop overhead
  */
 #define rs_process_purec_32b rs_process_purec
 
@@ -105,6 +108,7 @@ void SYSV_ABI rs_process_purec_32b(void* dstvoid, const void* srcvoid, size_t si
 		// TODO: save the <<16 by loading l1/h1 offset by -2 bytes,
 		// to get the zero-padding from the previous entry
 		// requires a padding entry at the front of the table
+		// mmx punpck does this, but if src bytes hit the beginning of a cache line very often, it's a big slowdown
 #undef LO
 #undef HI
 	}

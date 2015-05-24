@@ -24,7 +24,7 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 	__m128i d, l, h;
 	__m128i *dst = dstvoid;
 
-	_mm256_zeroupper();
+//	_mm256_zeroupper();
 	uint64_t s0, s1;
 	for (size_t i = 0; i < size ; i+=16) {
 		s0 = *((uint64_t*) ((char*)srcvoid + i));	// byte address math, 64bit load
@@ -69,5 +69,5 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 		_mm_store_si128(dst+i/16, d);
 	}
 
-	_mm256_zeroupper();
+//	_mm256_zeroupper();
 }
