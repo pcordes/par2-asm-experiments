@@ -1,0 +1,119 @@
+Only IvB, not Haswell, can eliminate movzx %dl, %eax.  Either way, it still takes a fused-domain uop,
+so it only helps with latency (and execution units,
+but that doesn't matter because so many of our uops are loads.)
+
+using xmm instead of mmx: LUT is harder
+  punpckldq loads 64b instead of 32, and has the full alignment requirements.  (GP fault on misaligned.)
+  movd, punpckldq: 2 uops (vs. 1 uop for punpck directly from RAM, but that can suffer from a cacheline split)
+  movd, palignr:  2 uops  (palignr from mem is 2 by itself, so movd to a reg first doesn't cost extra)
+
+
+ after preparing 2 halves of value to xor with dest in 2 xmm regs, use movlhps or something to put low64 of one into high64 of the other (1uop)
+
+ or get results in low 16 of 64bit halves, and shift?
+
+LUT loads:
+	movd:		1 uop, clears upper
+	punpckldq:	1 uop, shuffles previous contents over
+	PINSRW from RAM is 2 uops  (1 load, 1 p15 SnB. tput 0.5,  (just load + p5 on HWell: tput 1))
+	pmovzxwd / wq:	1 uops from RAM for xmm, 2uops from RAM for ymm.  even WQ loads 2 src words, not just low word
+	# pshufd (2 uops from ram) non-destructive shuffle, but can't combine data from multiple regs
+	PALIGNR -14(%rbp, %rax, 2)...:  2 uops from RAM (load + p5 on HWell: tput 1)
+	PALIGNR for misaligned?  More useful when you actually want 128B unaligned loads, I think?
+	     or use it to shift old contents up, shifting new 2 or 4 bytes in from RAM.  (PALIGNR from RAM is 2 uops, or 1 from xmm)
+	     use it on -2(%rbp, %rax, 2) to get wanted table bytes, shifting old contents over?  check if it's slow when non-loaded crosses cache line
+
+	punpcklwd:	1 uop: interleave by words, not dwords.  With zero-padded LUT, could save the shift by two bytes to get the LH[src1] to the right place.
+	# punpckh: puts data from high half of dest into low half.
+	
+
+SnB bottleneck analysis for GP load 8byte, shift $16, 2xmovzx (24uop)
+       loads: 2 src + 16 LUT p23 loads: 9 cycles.  for 22 p015 uops: 7.33 cycles.  40 uops total: 10 cycles.
+       So issue rate is still the bottleneck even with the lowest-total-uop version.
+
+SnB including processing dest:
+       p23: 1 dest load + 1 dest store (needs AGU on SB/IvB) + 2 src + 16 LUT p23 loads: 10 cycles.
+       p015: 22 uops: 7.33 cycles.
+       issue rate: 42 uops total: 10.5 cycles.  (not including any uops to combine the LUT lookups with xor)
+
+
+**Cost to get 8 * 2B words loaded from mem, and into 1B chunks for base+index*scale lookups:
+ note: don't use %rbp or %r13 as the base, http://www.x86-64.org/documentation/assembly.html says
+ (%rbp,index,scale) isn't encodable, only 0(%rbp,index,scale).
+
+pextrb: 33uops
+ 16byte load: 1uop
+ 16 * pextrb: 16 * 2 uops.  (can't movd the first word)
+
+pextrw + movzx: 32uops (8 of them zero-latency on IvB)
+ 16byte load: 1uop
+ 1st word: movd: 1 uop   next 7 words: pextrw: 2 uops (p0 p5):  15 uops
+ 2x movzx per word: 2 uop (1 on Ivy Bridge): 16(8) uops
+
+
+GP reg: shr $8 + movzx: 30uops (14 of them zero-latency on IvB)
+ 2x8byte load: 2 uops
+ 2x7 movzx %dl, %eax: 14(0) uops
+ 2x7 shr $8:  14 uops
+ (last 8b left in %rdx ready to use)
+
+GP reg: shr $16 + movzx %dl/dh: 24uops (8 of the the 16 movzx are zero lat on IvB).  exec ports: 22 p015, 2 p23.
+ 2x8byte load: 2 uops
+ 2x2 movzx: 4
+ 2xshr $16: 2
+ 2x2 movzx: 4
+ 2xshr $16: 2
+ 2x2 movzx: 4
+ 2xshr $16: 2
+ 2x2 movzx: 4
+
+
+GP reg: split dep chain: 26 uops.  (bad plan, just do 2x8 in parallel)
+ 2x8byte load: 2 uops
+ 2xmovq: 2 uops (0 lat on IvB and Haswell)
+ 2xshr $32: 2 uops
+ 2x4movzx: 8uops
+ 2x2shr $16: 4uops
+ 2x4movzx: 8uops
+
+
+load XMM -> move to GP:  +1 uop.  (-1 load port, +3 p015).  Higher latency load -> use
+ +1 movdqa:	1 uop (load port)
+ -2 movq:	-2uop (load port)
+
+ +1 movq x,r	1 uop (p015)
+ +1 pextrq x,1,r 2 uops (p0, p015)  (or 2 uops shift+movq)
+
+
+load 1B at a time: 16 (but competes for the load ports with table lookups)
+       16 src + 16 LUT p23 loads: 32/2 = 16 cycles.
+ 16x movzx: 16 uops
+
+load 2B at a time: 24 (same as GP shifts, but bottlenecks the load port and has 3 cycle load-use latency more of the time)
+ 8x movzwl: 8 uops (load)
+ 2x8 movzx: 16 uops (reg, reg)
+
+
+
+
+
+
+get the upper 16 ready for use:
+ shr $16, %rdx;			3 (1 (p05)+ low16+zero  (or +garbage %rdx has high bytes))
+ bswap %edx			3 (1 (p1) + low16+garbage)
+ shld $8, %eax, %edx; shld $8, %ebx, %edx;	4 (1 + 1 (+ 2 for clearing dest regs))
+     zeroing a reg takes a fused uop, but no execution unit.
+     Still counts as one of the four from the uop cache per cycle
+ shld $8, %eax, %edx; shr $24, %edx;		3 (1 + 1 (+ 1 for the xor to clear eax.))
+
+
+given %edx with the word we want in %dx, and garbage in the upper 16, prepare 2 regs with 8b indices:
+ movzx %dl, %eax;  movzx %dh, %ebx;	2 uops (0 latency for %dl on IvB)
+
+
+given %edx with the word in %dx, zeros in upper 16:
+ movzx %dl, %eax;  movzx %dh, %ebx;	2 uops (0 latency for %dl on IvB)
+ movzx %dl, %eax;  shr $8, %edx;	2 uops (0 latency for %dl on IvB)
+ xor %ebx, %ebx;   xchg %dh, %bl;	5 (1(xor) + 3(xchg) + 1 partial reg merge)
+ lea (%dh), %bl;   movzx %dl, %eax	2 (1 + 1 + 1 partial reg (%bl))
+ lea (%dh), %ebx;  movzx %dl, %eax	2 (1 + 1 (if you can LEA 8bit address, 32bit operand size))

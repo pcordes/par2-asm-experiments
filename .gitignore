@@ -1,0 +1,9 @@
+a.*
+*.out
+
+*.gcda
+*.gcno
+
+# gcc -S outputs:
+process-purec.s
+intrin-pinsrw.s
