@@ -4,6 +4,9 @@ a.*
 *.gcda
 *.gcno
 
+# stash good/working versions before starting to modify
+old-good-versions/
+
 # gcc -S outputs:
 process-purec.s
 intrin-pinsrw.s
