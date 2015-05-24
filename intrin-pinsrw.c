@@ -21,14 +21,14 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 //	srcvoid &= ~ (ptrdiff_t) 0x0f;
 	srcvoid = FORCE_ALIGN16(srcvoid);
 	dstvoid = FORCE_ALIGN16(dstvoid);	// compiler generates an AND $-16, %rax before using dst, for some reason, but this doesn't help
+	const uint64_t *src = FORCE_ALIGN16(srcvoid);
 	__m128i d, l, h;
 	__m128i *dst = dstvoid;
 
 //	_mm256_zeroupper();
-	uint64_t s0, s1;
-	for (size_t i = 0; i < size ; i+=16) {
-		s0 = *((uint64_t*) ((char*)srcvoid + i));	// byte address math, 64bit load
-		s1 = *((uint64_t*) ((char*)srcvoid+8 + i));	// byte address math, 64bit load
+	for (size_t i = 0; i < size/sizeof(d) ; i+=1) {
+		uint64_t s0 = src[i*2 + 0];
+		uint64_t s1 = src[i*2 + 1];
 
 #define LO(x) ((uint8_t)x)
 //#define HI(x) ((uint8_t)((x >> 8) & 0xff))
@@ -65,8 +65,8 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 #undef HI
 		// d = _mm_loadl_epi128(dst + i);
 		d = _mm_xor_si128(l, h);	// gcc 4.9 uses a 3rd xmm reg for no reason, even with l instead of d
-		d = _mm_xor_si128(d, *(dst+i/16));
-		_mm_store_si128(dst+i/16, d);
+		d = _mm_xor_si128(d, dst[i]);
+		_mm_store_si128(&dst[i], d);
 	}
 
 //	_mm256_zeroupper();
