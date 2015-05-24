@@ -8,6 +8,8 @@
  * gcc -g -Wall -march=native -funroll-loops -O3 -std=gnu11 main.c process-purec.c reedsolomon-x86_64-mmx.s reedsolomon-x86_64-mmx-orig.s asm-avx2-vgatherdd.s intrin-pinsrw.c asm-pinsrw*.s
  *
  * run with:
+ * ./a.out -a 60
+ * or (pin to CPU core #3)
  * taskset 0x04 ./a.out -a 60 && grep MHz /proc/cpuinfo
  *
  */
@@ -19,6 +21,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <stddef.h>	// ptrdiff_t
 
 // #include <tbb/tbb.h>
 //#include <intrin.h>
@@ -109,10 +112,16 @@ int main (int argc, char *argv[])
 		}
 	}
 
+	ptrdiff_t LH_adjusted = (ptrdiff_t)lhTable;
 	if (align >= 0 && align & 0x3) {		// FIXME: not based on sizeof
-		printf ("shifting LH not implemented yet, align has to be a multiple of %d\n", (int)sizeof(*lhTable));
-		return 2;
+		int align_lowbits = align & 0x3;
+		LH_adjusted |= align_lowbits;
+		// -a 63 confirms that cacheline splits are a MAJOR speed hit (factor of 2.7 slowdown)
+//		printf ("shifting LH not implemented yet, align has to be a multiple of %d\n", (int)sizeof(*lhTable));
+//		return 2;
 	}
+	typeof (*lhTable) *LH = (void*)LH_adjusted;
+
 	uint16_t *srcwords = (uint16_t *) srcbuf;
 	for (int i=0; i < size / 2; i++) {
 		if (align < 0) {
@@ -124,37 +133,37 @@ int main (int argc, char *argv[])
 	}
 	memset(dstbuf, 0, size);
 
-	printf("LH = %p.  size=%" PRIu64 "\n", lhTable, size);
+	printf("LH = %p.  size=%" PRIu64 "\n", LH, size);
 
-	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("dummy         ", rs_dummy, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, lhTable);
+	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
+	time_rs_print ("dummy         ", rs_dummy, dstbuf, srcbuf, size, LH);
+	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
+	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
+	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
+	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	puts ("----------------");
 
 	for (int i=0 ; i<3 ; i++) {
-		time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, lhTable);
-		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, lhTable);
-		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, lhTable);
-		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, lhTable);
-		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, lhTable);
+		time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
+		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
+		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, LH);
+		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
+		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 		// fflush(stdout);
 		if (__builtin_cpu_supports("avx2")) {
-			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, lhTable);
-			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, lhTable);
+			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
+			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
 		}
 	}
 
 	puts ("----------------");
-	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, lhTable);
-	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, lhTable);
+	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
+	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
+	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
+	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
 
 	return 0;
 }
