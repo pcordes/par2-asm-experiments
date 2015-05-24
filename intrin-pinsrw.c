@@ -2,7 +2,7 @@
 #include <emmintrin.h>
 #include <immintrin.h> // vzeroupper
 #include <stdint.h>
-#include <stddef.h> // ptrdiff_t
+// #include <stddef.h> // ptrdiff_t
 #include "asm-test.h"
 
 // #define FORCE_ALIGN16(x) (void*)(  ((ptrdiff_t)x) & ~(ptrdiff_t)0x0f  )
@@ -19,22 +19,24 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 {
 //	prefetchT0      (%rdi)
 //	srcvoid &= ~ (ptrdiff_t) 0x0f;
-	srcvoid = FORCE_ALIGN16(srcvoid);
-	dstvoid = FORCE_ALIGN16(dstvoid);	// compiler generates an AND $-16, %rax before using dst, for some reason, but this doesn't help
-	const uint64_t *src = FORCE_ALIGN16(srcvoid);
+//	srcvoid = FORCE_ALIGN16(srcvoid);
+//	dstvoid = FORCE_ALIGN16(dstvoid);	// compiler generates an AND $-16, %rax before using dst, for some reason, but this doesn't help
+//	const uint64_t *src = FORCE_ALIGN16(srcvoid);
+	const uint64_t *src = srcvoid;
 	__m128i d, l, h;
 	__m128i *dst = dstvoid;
 
 //	_mm256_zeroupper();
 	for (size_t i = 0; i < size/sizeof(d) ; i+=1) {
-		uint64_t s0 = src[i*2 + 0];
-		uint64_t s1 = src[i*2 + 1];
 
 #define LO(x) ((uint8_t)x)
 //#define HI(x) ((uint8_t)((x >> 8) & 0xff))
 //#define HI(x) ( (uint8_t) (((uint16_t)x) >> 8) )  // This gets gcc to emit  movz %bh, %eax, unlike the & 0xff version
 // u8(((u16) s) >>  8)
 #define HI(x) (( (union wordbytes) ((uint16_t)x) ).b[1])  // fastest code, but still horrible; WAY too much useless mov
+
+		uint64_t s0 = src[i*2 + 0];
+		uint64_t s1 = src[i*2 + 1];
 
 		l = _mm_cvtsi32_si128( LH[      LO(s0)] );		// movd the lookup for the l/h byte of the first word
 		h = _mm_cvtsi32_si128( LH[256 + HI(s0)] );
@@ -61,6 +63,7 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 		h = _mm_insert_epi16(h, LH[256 + HI(s0)], 3);
 		l = _mm_insert_epi16(l, LH[      LO(s1)], 7);
 		h = _mm_insert_epi16(h, LH[256 + HI(s1)], 7);
+
 #undef LO
 #undef HI
 		// d = _mm_loadl_epi128(dst + i);
