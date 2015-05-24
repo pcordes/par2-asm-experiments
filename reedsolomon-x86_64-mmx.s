@@ -45,64 +45,64 @@ loop:
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	movd		0x0000(%rbp, %rax, 4), %mm0
+	 movzx		%cl, %eax
 	shr			$16, %rdx
 	movd		0x0400(%rbp, %rbx, 4), %mm1
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
-	movd		0x0000(%rbp, %rax, 4), %mm4
-	movd		0x0400(%rbp, %rbx, 4), %mm5
-
+	 movzx		%ch, %ebx
+	 movd		0x0000(%rbp, %rax, 4), %mm4
 	movzx		%dl, %eax
+	 shr			$16, %rcx
+	 movd		0x0400(%rbp, %rbx, 4), %mm5
+
 	movzx		%dh, %ebx
-	shr			$16, %rdx
 	movd		0x0000-2(%rbp, %rax, 4), %mm2
+	 movzx		%cl, %eax
+	shr			$16, %rdx
 	movd		0x0400-2(%rbp, %rbx, 4), %mm3
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
-	movd		0x0000-2(%rbp, %rax, 4), %mm6
-	movd		0x0400-2(%rbp, %rbx, 4), %mm7
-
+	 movzx		%ch, %ebx
+	 movd		0x0000-2(%rbp, %rax, 4), %mm6
 	movzx		%dl, %eax
+	 shr			$16, %rcx
+	 movd		0x0400-2(%rbp, %rbx, 4), %mm7
+
 	movzx		%dh, %ebx
-	shr			$16, %rdx
 	punpckldq	0x0000(%rbp, %rax, 4), %mm0
+	 movzx		%cl, %eax
+	shr			$16, %rdx
 	punpckldq	0x0400(%rbp, %rbx, 4), %mm1
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	shr			$16, %rcx
-	punpckldq	0x0000(%rbp, %rax, 4), %mm4
-	punpckldq	0x0400(%rbp, %rbx, 4), %mm5
-
+	 movzx		%ch, %ebx
+	 punpckldq	0x0000(%rbp, %rax, 4), %mm4
 	movzx		%dl, %eax
+	 shr			$16, %rcx
+	 punpckldq	0x0400(%rbp, %rbx, 4), %mm5
+
 	movzx		%dh, %ebx
 	punpckldq	0x0000-2(%rbp, %rax, 4), %mm2
 	punpckldq	0x0400-2(%rbp, %rbx, 4), %mm3
 
-	movzx		%cl, %eax
-	movzx		%ch, %ebx
-	punpckldq	0x0000-2(%rbp, %rax, 4), %mm6
-	punpckldq	0x0400-2(%rbp, %rbx, 4), %mm7
+	 movzx		%cl, %eax
+	 movzx		%ch, %ebx
+	 punpckldq	0x0000-2(%rbp, %rax, 4), %mm6
+	 punpckldq	0x0400-2(%rbp, %rbx, 4), %mm7
 		movq		16(%rsi, %r8), %rdx			# read for next iteration
 		movq		24(%rsi, %r8), %rcx			# read for next iteration
 
 	pxor		%mm1, %mm0
 	pxor		%mm3, %mm2
 #	psllq		$16, %mm2		# unneeded: LUT loads offset by -2 to get pre-shifted
+	 pxor		%mm5, %mm4
 	pxor		%mm2, %mm0
-	pxor		(%rdi, %r8), %mm0
 
-	pxor		%mm5, %mm4
-	pxor		%mm7, %mm6
-#	psllq		$16, %mm6		# unneeded: LUT loads offset by -2 to get pre-shifted
-	pxor		%mm6, %mm4
-	pxor		8(%rdi, %r8), %mm4
+	 pxor		%mm7, %mm6
+#	 psllq		$16, %mm6		# unneeded: LUT loads offset by -2 to get pre-shifted
+	pxor		(%rdi, %r8), %mm0
+	 pxor		%mm6, %mm4
+	 pxor		8(%rdi, %r8), %mm4	# could play around with scheduling the xors, since it's transitive and associative
 	movq		%mm0, (%rdi, %r8)
-	movq		%mm4, 8(%rdi, %r8)
+	 movq		%mm4, 8(%rdi, %r8)
 
 
 	add			$16, %r8
