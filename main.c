@@ -96,10 +96,15 @@ static uint64_t time_rs_print(const char* name, rs_procfunc_t *fn, void* dst, co
 
 int main (int argc, char *argv[])
 {
-	unsigned int lhTable[256*2 *1 + 64] ALIGN(2048);  // include an 64*size to make room for shifting around
+	typedef uint32_t LH_TABLE_T;
+	LH_TABLE_T lhTable[256*2 *1 + 64/sizeof(LH_TABLE_T)] ALIGN(4096);
+	memset(lhTable, 0, 64);
 	for (int i=0; i<512; i++) {
-		lhTable[i] = i;
+		lhTable[i+64/sizeof(*lhTable)] = i;
 	}
+	typeof (*lhTable) *LH = lhTable + 64/sizeof(*lhTable);
+	// LH has zeroes before it, and starts at the beginning of a cache line.
+	// It is all in one page (including padding)
 
 	size_t size = sizeof(srcbuf);
 //	size = 128;
@@ -126,8 +131,8 @@ int main (int argc, char *argv[])
 		// -a 63 confirms that cacheline splits are a MAJOR speed hit (factor of 2.7 slowdown)
 //		printf ("shifting LH not implemented yet, align has to be a multiple of %d\n", (int)sizeof(*lhTable));
 //		return 2;
+		LH = (void*)LH_adjusted;
 	}
-	typeof (*lhTable) *LH = (void*)LH_adjusted;
 
 	uint16_t *srcwords = (uint16_t *) srcbuf;
 	for (int i=0; i < size / 2; i++) {
