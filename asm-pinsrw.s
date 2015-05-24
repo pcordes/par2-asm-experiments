@@ -54,7 +54,7 @@ rs_process_pinsrw128:
 # r11: -count, counts upward to 0.
 # rdx, rcx: src.  src words [0..3] and [4..7]
 
-	.align	16
+	.align	64
 loop:
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
 	movzx		%dl, %eax
