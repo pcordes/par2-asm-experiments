@@ -32,7 +32,7 @@ rs_process_pinsrw128:
 	mov			%rcx, %rbp						# combined multiplication table.
 	mov			%rdx, %r11						# number of bytes to process (multiple of 16)
 	movq		(%rsi),  %rdx			# load first 8 source bytes
-#	movq		8(%rsi), %rcx
+	movq		8(%rsi), %rcx
 
 	sub			$16, %r11						# last8 is a loop iter without loading more src
 	jle			last8	# can only skip fixing up src/dest ptr if count is now exactly 0, not just under 16 on entry
@@ -54,68 +54,67 @@ rs_process_pinsrw128:
 # r11: -count, counts upward to 0.
 # rdx, rcx: src.  src words [0..3] and [4..7]
 
-# mm5: previous value of dest
-
 	.align	16
 loop:
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	shr			$16, %rdx
-		movq		8(%rsi, %r11), %rcx			# next 8 source bytes
 	movd		0x0000(%rbp, %rax, 4), %xmm0		# There is no movw to vector reg.  upper 16 has garbage.  (and can cacheline-split)
-	movd		0x0400(%rbp, %rbx, 4), %xmm1		# use movd over pinsrw anyway, to break the dependency chain.  (and one less uop)
-
-	movzx		%dl, %eax
-	movzx		%dh, %ebx
-	shr			$16, %rdx
-	pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm0
-	pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm1
-
 	movzx		%cl, %eax
+	movd		0x0400(%rbp, %rbx, 4), %xmm1		# use movd over pinsrw anyway, to break the dependency chain.  (and one less uop)
+	# movzx %cl scheduled in front of previous load
 	movzx		%ch, %ebx
 	shr			$16, %rcx
 	movd		0x0000(%rbp, %rax, 4), %xmm2		# separate dep chain for the other 8 src bytes costs 2 uops (pxor + punpck)
+	movzx		%dl, %eax
 	movd		0x0400(%rbp, %rbx, 4), %xmm3		# but movd is cheaper than pinsrw, so no uop savings.  (It is slightly faster)
 
-	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	shr			$16, %rdx
-	pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0
-	pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm1
-
+	pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm0
 	movzx		%cl, %eax
+	pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm1
+
 	movzx		%ch, %ebx
 	shr			$16, %rcx
 	pinsrw		$1, 0x0000(%rbp, %rax, 4), %xmm2
+	movzx		%dl, %eax
 	pinsrw		$1, 0x0400(%rbp, %rbx, 4), %xmm3
 
-	movzx		%dl, %eax
 	movzx		%dh, %ebx
-	pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm0
-	pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm1
-
+	shr			$16, %rdx
+	pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0
 	movzx		%cl, %eax
+	pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm1
+
 	movzx		%ch, %ebx
 	shr			$16, %rcx
-		movq		16(%rsi, %r11), %rdx			# read-ahead for next iter
 	pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm2
+	movzx		%dl, %eax
 	pinsrw		$2, 0x0400(%rbp, %rbx, 4), %xmm3
+
+	movzx		%dh, %ebx
+		movq		16(%rsi, %r11), %rdx			# read for next iter
+	pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm0
 	movzx		%cl, %eax
+	pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm1
+
 	movzx		%ch, %ebx
 	pinsrw		$3, 0x0000(%rbp, %rax, 4), %xmm2
 	pinsrw		$3, 0x0400(%rbp, %rbx, 4), %xmm3
+		movq		24(%rsi, %r11), %rcx			# read for next iter
 
-	pxor		%xmm0, %xmm1
-	pxor		%xmm2, %xmm3
-#	movlhps		%xmm3, %xmm1	# runs on p5 only
-	punpcklqdq	%xmm3, %xmm1	# runs on p1 / p5, same as pinsrw (SnB)
+	pxor		%xmm1, %xmm0
+	pxor		%xmm3, %xmm2
+#	movlhps		%xmm2, %xmm0	# runs on p5 only
+	punpcklqdq	%xmm2, %xmm0	# runs on p1 / p5, same as pinsrw (SnB)
 
-#	movq		0(%rdi, %r11, 1), %xmm5
-#	pxor		%xmm5, %xmm1
-	pxor		(%rdi, %r11), %xmm1
-	movdqu		%xmm1, 0(%rdi, %r11, 1)
-#	movq		%xmm1, 0(%rdi, %r11, 1)
+#	movq		(%rdi, %r11), %xmm5
+#	pxor		%xmm5, %xmm0
+	pxor		(%rdi, %r11), %xmm0
+	movdqu		%xmm0, (%rdi, %r11)
+#	movq		%xmm0, (%rdi, %r11)
 
 	add			$16, %r11
 	jnz			loop
