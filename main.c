@@ -32,6 +32,13 @@
 #define ALIGN64 __attribute__ ((aligned (64)))
 #define ALIGN(x) __attribute__ ((aligned (x)))
 
+#if defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__) >= 408 // GCC 4.8 or later.
+// CLANG defines a lower version number, and doesn't have __builtin_cpu_supports
+#define HAVE_AVX2 __builtin_cpu_supports("avx2")
+#else
+#define HAVE_AVX2 0
+#endif
+
 static __inline__ uint64_t rdtsc() {
     uint32_t low, high;
 /*    __asm__ __volatile__ (
@@ -151,7 +158,7 @@ int main (int argc, char *argv[])
 		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 		// fflush(stdout);
-		if (__builtin_cpu_supports("avx2")) {
+		if (HAVE_AVX2) {
 			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
 			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
 		}

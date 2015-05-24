@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 #include <emmintrin.h>
 #include <immintrin.h> // vzeroupper
 #include <stdint.h>
@@ -6,7 +6,12 @@
 #include "asm-test.h"
 
 // #define FORCE_ALIGN16(x) (void*)(  ((ptrdiff_t)x) & ~(ptrdiff_t)0x0f  )
+#if defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__) >= 408 // GCC 4.8 or later.
 #define FORCE_ALIGN16(x) __builtin_assume_aligned (x, 16)
+#else
+// maybe CLANG will have assume_aligned when they bump their version up to GCC 4.8?
+#define FORCE_ALIGN16(x) (x)
+#endif
 
 union wordbytes { uint16_t w; uint8_t b[2]; };
 
