@@ -18,6 +18,7 @@ rs_process_pinsrw128:
 #	push		%r15
 
 	# in amd64, encoding (%rbp, %rax, 4) takes an extra byte vs. using other regs.  It has to get encoded with a 0-byte displacement, rather than no disp
+	# r13 suffers the same problem as rbp.  http://www.x86-64.org/documentation/assembly.html
 	# pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0  # 7B
 	# pinsrw		$2, 0x0000(%r10, %rax, 4), %xmm0  # 7B
 	# pinsrw		$2, 0x0000(%rcx, %rax, 4), %xmm0  # 6B
