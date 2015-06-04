@@ -70,6 +70,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 #endif
 #endif
 #endif
+		// TODO: use b = factor, and find the position of its high bit to loop fewer than 16 times.
 		for (int bit = 0; bit < 16; bit++) {
 			// **** 1. if LSB of b is set, prod ^= a
 			// There is no variable-mask pblendvw, only byte-wise pblendvb
