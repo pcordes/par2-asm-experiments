@@ -18,7 +18,7 @@
 		vpunpckldq	0x000(%rbp, %rax, 2), x1 \
 		vpunpcklwd	0x200(%rbp, %rbx, 2), x2
 
-	.align	16
+	.align	32
 loop2xGP:
 	movq	0(%rsi), %rcx	# src[0..3]  (4xu16)
 	movq	8(%rsi), %rdx	# src[4..8]
@@ -37,7 +37,7 @@ loop2xGP:
 	LUT_MOVD (d, %xmm8, %xmm9)
 
 
-	.align	16
+	.align	32
 shr8loop:
 ### %rdx has 8 bytes data from (%rsi)
 # %rsi points to source data

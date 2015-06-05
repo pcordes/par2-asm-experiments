@@ -1,3 +1,4 @@
+	.align 16
 	.globl rs_process_x86_64_mmx_orig
 	.text
 rs_process_x86_64_mmx_orig:
@@ -39,7 +40,7 @@ rs_process_x86_64_mmx_orig:
 
 # mm5: previous value of dest
 
-	.align	16
+	.align	32
 loop:
 	movzx		%dl, %eax
 	movzx		%dh, %ebx

@@ -51,7 +51,7 @@ static __inline__ uint64_t rdtsc() {
 
 /*extern "C" */
 void SYSV_ABI rs_process_x86_64_vgather(void* dst, const void* src, size_t size, const uint32_t* LH);
-void SYSV_ABI rs_process_testloop_align32(void* dst, const void* src, size_t size, const uint32_t* LH);
+void SYSV_ABI rs_process_vgather_align32(void* dst, const void* src, size_t size, const uint32_t* LH);
 void SYSV_ABI rs_process_x86_64_mmx(void* dst, const void* src, size_t size, const uint32_t* LH);
 void SYSV_ABI rs_process_x86_64_mmx_orig(void* dst, const void* src, size_t size, const uint32_t* LH);
 void SYSV_ABI rs_process_pinsrw_mmx(void* dst, const void* src, size_t size, const uint32_t* LH);
@@ -166,8 +166,8 @@ int main (int argc, char *argv[])
 
 		// fflush(stdout);
 		if (HAVE_AVX2) {
-			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
-			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
+			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
+			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
 		}
 	}
 

@@ -1,3 +1,4 @@
+	.align 16
 	.globl rs_process_pinsrw64
 	.text
 rs_process_pinsrw64:
@@ -42,7 +43,7 @@ rs_process_pinsrw64:
 
 # mm5: previous value of dest
 
-	.align	16
+	.align	32
 loop:
 	movzx		%dl, %eax
 	movzx		%dh, %ebx

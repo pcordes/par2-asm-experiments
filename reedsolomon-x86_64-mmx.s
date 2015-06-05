@@ -1,3 +1,4 @@
+	.align 32
 	.globl rs_process_x86_64_mmx
 	.text
 rs_process_x86_64_mmx:
@@ -40,7 +41,7 @@ rs_process_x86_64_mmx:
 
 # mm0-3: src 0..3
 # mm4-7: src 4..7
-	.align	16
+	.align	32
 loop:
 	movzx		%dl, %eax
 	movzx		%dh, %ebx

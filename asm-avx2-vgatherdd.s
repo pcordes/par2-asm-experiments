@@ -7,8 +7,8 @@ testloop_align8:
 	# %xmm8: vpand mask with only the low byte in each dword set
 
 	# LH table in %rbp
-	.align	16
 ###################### vpgatherdd 128bit, 64 src bits at a time
+	.align	32
 Lgather128:
 	# generate a mask from count vs. alignment?
 #	vmovdqa	0(%rsi), %ymm5
@@ -48,9 +48,7 @@ Lgather128:
 #	pop  %xmm6
 #	pop  %xmm7
 	vzeroupper
-
-
-	.align	16
+	ret
 
 ################### 256bit vgather (128 src bits at a time)
 testloop_align16:
@@ -61,6 +59,7 @@ testloop_align16:
 	# ymm13: vpshufb control mask that packs the LH lookup results into the right parts of the ymm
 
 	# LH table in %rbp
+	.align	32
 Lgather256:
 
 #	# 8xlow  bytes to look up, each in its own 32bit dword
@@ -110,12 +109,11 @@ Lgather256:
 	vmovdqu	%xmm0, 0(%rdi)
 
 	ja Lgather256
-
-	.align	16
+	ret
 
 ########### 256b vpgatherdd, with 256b src/dest loads/stores, and 256b vpunpck
 	.data
-	.align 8
+	.align 16
 Lrs_shuf_masks:
 	# load with broadcast to get upper 128 holding the same shuffle control mask
 	# %ymm13: vpshufb control mask that packs the LH lookup results into the low half of the 128bit lane
@@ -126,9 +124,9 @@ Lrs_shuf_masks:
 	# .byte 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d
 .text
 
-.globl rs_process_testloop_align32
-rs_process_testloop_align32:
-	.align 64
+	.align 16
+.globl rs_process_vgather_align32
+rs_process_vgather_align32:
 	# args: src=%rsi dst=%rdi LH=%rcx size(bytes)=%rdx
 
 	push		%rbp
@@ -171,7 +169,7 @@ rs_process_testloop_align32:
 	vpshufd		 $0x4e, %ymm13, %ymm14	# rotate the shuffle mask to pack results to the other end
 	# 01 00 11 10 -> $0x4e: swap the upper/lower 64b
 
-	.align 16
+	.align 32
 Lgather256full:
 	vmovdqu 0(%rsi), %ymm5			# 32byte loads of src data
 	## vpmovzxwd %ymm5, %ymm11  # nope, punpck is easier to repack later, without having to move data between lanes

@@ -1,3 +1,4 @@
+	.align 16
 	.globl rs_process_pinsrw_unpipelined
 	.text
 rs_process_pinsrw_unpipelined:
@@ -41,7 +42,7 @@ rs_process_pinsrw_unpipelined:
 
 # mm5: previous value of dest
 
-	.align	16
+	.align	32
 loop:
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
 		movq		(%rsi, %r11), %rdx			# read-ahead next 8 source bytes
