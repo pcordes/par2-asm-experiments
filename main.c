@@ -5,7 +5,7 @@
  *
  * compile with:
  *  x86_64-w64-mingw32-gcc to make a.exe
- * gcc -g -Wall -march=native -funroll-loops -O3 -std=gnu11 main.c process-purec.c reedsolomon-x86_64-mmx.s reedsolomon-x86_64-mmx-orig.s asm-avx2-vgatherdd.s intrin-pinsrw.c asm-pinsrw*.s
+ * gcc -g -Wall -march=native -funroll-loops -O3 -std=gnu11 main.c process-purec.c intrin-nolut.c reedsolomon-x86_64-mmx.s reedsolomon-x86_64-mmx-orig.s asm-avx2-vgatherdd.s intrin-pinsrw.c asm-pinsrw*.s
  *
  * run with:
  * ./a.out -a 60
@@ -162,6 +162,8 @@ int main (int argc, char *argv[])
 		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
+
 		// fflush(stdout);
 		if (HAVE_AVX2) {
 			time_rs_print ("AVX2 vgather  ", rs_process_testloop_align32, dstbuf, srcbuf, size, LH);
