@@ -85,6 +85,13 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			// since 0*a = 0, and 1*a = a, this works because we're testing the low bit.
 	#endif
 			prod0 = _mm_xor_si128(prod0, msk0);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
+			// AVX512:
+			/* __mmask32 mask0 = _mm512_test_epi16_mask (b0, lowbit_mask);
+			 * __mm512i masked_a0 = _mm512_maskz_mov_epi16(msk0, a0);
+			 * prod0 = _mm512_xor_si512(prod0, masked_a0);
+			 * counting both masked-xors in the inner loop, this saves two uops, and shortens dep chains from 4 to 3 cycles.
+			 *  // There is no prod0 = _mm512_mask_xor_epi16(prod0, a0, msk0); // only vpxord/q (epi32/64)
+			 */
 
 			// ***** 2. b >>= 1
 			b0 = _mm_srli_epi16(b0, 1);
@@ -184,9 +191,10 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 		//   or use a variable shift get a masked_generator directly from the highbits (0x8000 or 0x0000):
 		//  shift by more than 16bits will zero the reg, shift by zero does nothing.
 		//   PSLLW takes the same shift count for all vector components (src[63:0])
-		//  VPSLLVW doesn't exist until AVX512BW + AXV512VL.  AVX2 only has D and Q sizes.
+		//  VPSLLVW doesn't exist until AVX512BW.  AVX2 only has D and Q sizes.
 		//    On Haswell, those take 3 uops anyway (lat=2, recip tput=2).  useless without fast vshift
-
+		//  AVX512BW has a test instruction to set a mask reg from an AND, so this isn't needed.
+		//  see comments in the loop
 
 
 		// d = _mm_loadl_epi128(dst + i);
