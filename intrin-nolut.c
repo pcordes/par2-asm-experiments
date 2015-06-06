@@ -76,14 +76,14 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			// There is no variable-mask pblendvw, only byte-wise pblendvb
 			// (which would also require extending the mask), so just use PAND
 			__m128i msk0 = _mm_and_si128(b0, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-#ifndef USE_PMUL
+	#ifndef USE_PMUL
 			msk0 = _mm_cmpeq_epi16(msk0, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk0 = _mm_and_si128(msk0, a0);
-#else
+	#else
 			msk0 = _mm_mullo_epi16(msk0, a0);
-#endif
 			// or use PMULLW instead of PCMPEQ+AND: masked_a = _mm_mullo_epi16(lsb_b, a);  # 1uop, 5 cycle latency
 			// since 0*a = 0, and 1*a = a, this works because we're testing the low bit.
+	#endif
 			prod0 = _mm_xor_si128(prod0, msk0);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
 
 			// ***** 2. b >>= 1
@@ -100,12 +100,12 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 
 #if INTERLEAVE > 1	/*** 2nd dep chain ***/
 			__m128i msk1 = _mm_and_si128(b1, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-#ifndef USE_PMUL
+	#ifndef USE_PMUL
 			msk1 = _mm_cmpeq_epi16(msk1, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk1 = _mm_and_si128(msk1, a1);
-#else
+	#else
 			msk1 = _mm_mullo_epi16(msk1, a1);
-#endif
+	#endif
 			prod1 = _mm_xor_si128(prod1, msk1);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
 			b1 = _mm_srli_epi16(b1, 1);
 			__m128i carry1 = _mm_and_si128(a1, highbit_mask); // 0x8000 or 0x0000
@@ -119,12 +119,12 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			__m128i msk2 = _mm_and_si128(b2, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
 			msk2 = _mm_cmpeq_epi16(msk2, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk2 = _mm_and_si128(msk2, a2);
-#ifndef USE_PMUL
+	#ifndef USE_PMUL
 			msk2 = _mm_cmpeq_epi16(msk2, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk2 = _mm_and_si128(msk2, a1);
-#else
+	#else
 			msk2 = _mm_mullo_epi16(msk2, a2);
-#endif
+	#endif
 			prod2 = _mm_xor_si128(prod2, msk2);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
 			b2 = _mm_srli_epi16(b2, 1);
 			__m128i carry2 = _mm_and_si128(a2, highbit_mask); // 0x8000 or 0x0000
@@ -137,12 +137,12 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			__m128i msk3 = _mm_and_si128(b3, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
 			msk3 = _mm_cmpeq_epi16(msk3, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk3 = _mm_and_si128(msk3, a3);
-#ifndef USE_PMUL
+	#ifndef USE_PMUL
 			msk3 = _mm_cmpeq_epi16(msk3, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
 			msk3 = _mm_and_si128(msk3, a3);
-#else
+	#else
 			msk3 = _mm_mullo_epi16(msk3, a3);
-#endif
+	#endif
 			prod3 = _mm_xor_si128(prod3, msk3);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
 			b3 = _mm_srli_epi16(b3, 1);
 			__m128i carry3 = _mm_and_si128(a3, highbit_mask); // 0x8000 or 0x0000
@@ -150,9 +150,9 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			a3 = _mm_slli_epi16(a3, 1);
 			carry3 = _mm_and_si128(carry3, generator);
 			a3 = _mm_xor_si128(a3, carry3);	// a ^= generator  for words that had a carry.  a ^= 0 (nop) others
-#endif	// INTERLEAVE > 1
-#endif	// INTERLEAVE > 2
 #endif	// INTERLEAVE > 3
+#endif	// INTERLEAVE > 2
+#endif	// INTERLEAVE > 1
 
 			// Early termination when a == 0 || b == 0 every 4 or 8 iterations?  or just after 8 and 12?
 			// unlikely to be profitable for a vector implementation, but only takes 3 instructions:
