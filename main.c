@@ -179,9 +179,9 @@ int main (int argc, char *argv[])
 		_mm256_zeroupper();
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 		_mm256_zeroupper();
-		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("pinsrw-nodep  ", rs_process_pinsrw_nodep, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
+		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
 		_mm256_zeroupper();
 		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
 		_mm256_zeroupper();
