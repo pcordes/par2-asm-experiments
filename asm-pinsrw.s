@@ -1,6 +1,20 @@
+	# in amd64, encoding (%rbp, %rax, 4) takes an extra byte vs. using other regs.  It has to get encoded with a 0-byte displacement, rather than no disp
+	# r13 suffers the same problem as rbp.  http://www.x86-64.org/documentation/assembly.html
+	# pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0  # 7B
+	# pinsrw		$2, 0x0000(%r10, %rax, 4), %xmm0  # 7B
+	# pinsrw		$2, 0x0000(%rcx, %rax, 4), %xmm0  # 6B
+	# pinsrw		$1, (%rsi,%rax,4), %xmm2	  # 6B
+	# vpinsrw		$0x4,(%rcx,%rbp,4),%xmm0,%xmm1	  # 6B
+	# vpinsrw		$0x7,(%rcx,%rbx,4),%xmm12,%xmm14  # 6B
+	# vpinsrw		$0x3,(%rcx,%r11,4),%xmm10,%xmm12  # 7B
+	# freeing up more low regs would seem to require more prologue to shuffle rsi and rdi
+	# so don't bother unless optimizing for something without a uop cache
+	# or could use rax or rbx, but then we'd lose the nice readability, and get mov %ch, %rbp or something
+
+
 	.align 16
-	.globl rs_process_pinsrw128
 	.text
+	.globl rs_process_pinsrw128
 rs_process_pinsrw128:
 #	rs_process_pinsrw128(void* dst (%rdi), const void* src (%rsi), size_t size (%rdx), const u16* LH (%rcx));
 # ~1 byte per cycle on SandyBridge
@@ -17,19 +31,6 @@ rs_process_pinsrw128:
 #	push		%r13
 #	push		%r14
 #	push		%r15
-
-	# in amd64, encoding (%rbp, %rax, 4) takes an extra byte vs. using other regs.  It has to get encoded with a 0-byte displacement, rather than no disp
-	# r13 suffers the same problem as rbp.  http://www.x86-64.org/documentation/assembly.html
-	# pinsrw		$2, 0x0000(%rbp, %rax, 4), %xmm0  # 7B
-	# pinsrw		$2, 0x0000(%r10, %rax, 4), %xmm0  # 7B
-	# pinsrw		$2, 0x0000(%rcx, %rax, 4), %xmm0  # 6B
-	# pinsrw		$1, (%rsi,%rax,4), %xmm2	  # 6B
-	# vpinsrw		$0x4,(%rcx,%rbp,4),%xmm0,%xmm1	  # 6B
-	# vpinsrw		$0x7,(%rcx,%rbx,4),%xmm12,%xmm14  # 6B
-	# vpinsrw		$0x3,(%rcx,%r11,4),%xmm10,%xmm12  # 7B
-	# freeing up more low regs would seem to require more prologue to shuffle rsi and rdi
-	# so don't bother unless optimizing for something without a uop cache
-	# or could use rax or rbx, but then we'd lose the nice readability, and get mov %ch, %rbp or something
 
 	mov			%rcx, %rbp						# combined multiplication table.
 	mov			%rdx, %r11						# number of bytes to process (multiple of 16)
