@@ -25,6 +25,7 @@
 
 // #include <tbb/tbb.h>
 //#include <intrin.h>
+#include <immintrin.h>
 
 #include "asm-test.h"
 
@@ -58,6 +59,8 @@ void SYSV_ABI rs_process_pinsrw_mmx(void* dst, const void* src, size_t size, con
 void SYSV_ABI rs_process_pinsrw_unpipelined(void* dst, const void* src, size_t size, const uint32_t* LH);
 void SYSV_ABI rs_process_pinsrw64(void* dst, const void* src, size_t size, const uint32_t* LH);
 void SYSV_ABI rs_process_pinsrw128(void* dst, const void* src, size_t size, const uint32_t* LH);
+void SYSV_ABI rs_process_pinsrw_nodep(void* dst, const void* src, size_t size, const uint32_t* LH);
+void SYSV_ABI rs_process_uoptest(void* dst, const void* src, size_t size, const uint32_t* LH);
 // rs_process_pinsrw_intrin
 void SYSV_ABI rs_dummy(void* dst, const void* src, size_t size, const uint32_t* LH) { }
 
@@ -147,37 +150,63 @@ int main (int argc, char *argv[])
 
 	printf("LH = %p.  size=%" PRIu64 "\n", LH, size);
 
+	_mm256_zeroupper();
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("dummy         ", rs_dummy, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
-	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
-	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
+//	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
+//	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	puts ("----------------");
 
 	for (int i=0 ; i<3 ; i++) {
+		_mm256_zeroupper();
 		time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
-		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
+//		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
 		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, LH);
-		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
+//		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
+		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
+		time_rs_print ("pinsrw-nodep  ", rs_process_pinsrw_nodep, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
 		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
+		_mm256_zeroupper();
 
 		// fflush(stdout);
 		if (HAVE_AVX2) {
 			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
+			_mm256_zeroupper();
 			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
+			_mm256_zeroupper();
 		}
 	}
 
 	puts ("----------------");
+	_mm256_zeroupper();
 	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
-	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
-	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
+	_mm256_zeroupper();
+//	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
+//	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
 
 	return 0;
 }
