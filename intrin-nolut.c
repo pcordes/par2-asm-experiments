@@ -31,7 +31,14 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 	const __m128i *src = srcvoid;
 	__m128i *dst = dstvoid;
 
-	__m128i generator = broadcast_word(0x1234);  // FIXME
+	/* par2 uses GF16 with a generator of 0x1100B.  This is wider than 16b:
+	 * The leading 1 bit in the generator is there to XOR the carry back to zero when
+	 * a <<= 1; is done with wider-than-16bit temporaries.
+	 * We test the high bit before shifting, so we can use 16b temporaries and generator,
+	 * with truncation.
+	 * The wikipedia example for GF8 uses a truncated generator.  (0x1b instead of 0x11b)
+	 */
+	__m128i generator = broadcast_word((uint16_t)0x1100BU);
 	uint16_t factor = LH[5];
 	__m128i factor_vec = broadcast_word(factor); // broadcast(factor);	// movd / pshufd $0  to broadcast without a pshufb control mask reg
 
@@ -168,34 +175,6 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			// jz DONE...	     # 1 uop.  Branch mispredict is fine with hyperthreading, otherwise bad.
 			// even less convenient when interleaving multiple dependency chains...
 		}
-		// on Haswell, with 4 exec units to match 4 dispatch / cycle:
-		// 10 AVX / AVX2 / AVX512 insns per GF bit -> 2.5 cycles per bit of the GF16
-		// 16 / 32 / 64B at a time.  (avx1 lacks _mm256_srli_epi16, which is a showstopper.  no equiv like andps %ymm)
-		// 2.5 / 1.25 / 0.625 cycles per source byte
-
-		// SnB, 4 dispatch but only 3 execution units: (timed on i5-2500k: no hyperthreading so full OoOE resources available)
-		// 10 AVX insns per GF bit -> 3.33 cycles per bit
-		// in practice, runs ~1/4 the speed of SSE2 pinsrw128 on SnB (AVX).  3.64 vs. 0.970.  with pmul: 3.91
-		// interleaved by 2 version: 3.35c/byte.  interleaved with pmul: 3.61
-		// interleaved by 3: 3.55c/B  pmul: 3.52c/B.  (3.50 once?)
-		// interleaved by 4: 3.61c/B  pmul: 3.49c/B.  (spills product to the stack.  big slowdown with insn-by-insn interleave, but not with iteration-by-iteration.  AVX512 has 32 vector regs, so this should be fine)
-		// might need to pipeline src loads?
-
-		// two dep chains of 4 cycles (and/cmpeq/and/xor) means we need to
-		// interleave operations on two source chunks at once, because
-		// OOExec queue depth is limited (esp. with hyperthreading)
-
-
-		// optimizations:
-		// high-bit set -> generator, else 0: (step 3+5)
-		//   or use a variable shift get a masked_generator directly from the highbits (0x8000 or 0x0000):
-		//  shift by more than 16bits will zero the reg, shift by zero does nothing.
-		//   PSLLW takes the same shift count for all vector components (src[63:0])
-		//  VPSLLVW doesn't exist until AVX512BW.  AVX2 only has D and Q sizes.
-		//    On Haswell, those take 3 uops anyway (lat=2, recip tput=2).  useless without fast vshift
-		//  AVX512BW has a test instruction to set a mask reg from an AND, so this isn't needed.
-		//  see comments in the loop
-
 
 		// d = _mm_loadl_epi128(dst + i);
 		__m128i d0 = _mm_xor_si128(prod0, dst[i]);
@@ -222,3 +201,50 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 
 //	_mm256_zeroupper();
 }
+
+/*
+ * on Haswell, with 4 exec units to match 4 dispatch / cycle:
+ * 10 AVX / AVX2 / AVX512 insns per GF bit -> 2.5 cycles per bit of the GF16
+ * 16 / 32 / 64B at a time.  (avx1 lacks _mm256_srli_epi16, which is a showstopper.  no equiv like andps %ymm)
+ * 2.5 / 1.25 / 0.625 cycles per source byte
+ */
+
+/*
+ * SnB, 4 dispatch but only 3 execution units: (timed on i5-2500k: no hyperthreading so full OoOE resources available)
+ * 10 AVX insns per GF bit -> 3.33 cycles per bit
+ * in practice, runs ~1/4 the speed of SSE2 pinsrw128 on SnB (AVX).  3.64 vs. 0.970.  with pmul: 3.91
+ * interleaved by 2 version: 3.35c/byte.  interleaved with pmul: 3.61
+ * interleaved by 3: 3.55c/B  pmul: 3.52c/B.  (3.50 once?)
+ * interleaved by 4: 3.61c/B  pmul: 3.49c/B.  (spills product to the stack.  big slowdown with insn-by-insn interleave, but not with iteration-by-iteration.  AVX512 has 32 vector regs, so this should be fine)
+ * might need to pipeline src loads?
+ * interleave by 2 still fits in the loop buffer, guaranteeing 4 uops / cycle.
+ * More than that and we're dependent on the uop cache delivering 4 uops/c, which depends on insn alignment into 32B chunks containing multiples of 4 uops.
+ */
+
+/*
+ * two dep chains of 4 cycles (and/cmpeq/and/xor) means we need to
+ * interleave operations on two source chunks at once, because
+ * OOExec queue depth is limited (esp. with hyperthreading)
+ */
+
+/*
+ * optimizations:
+ * AVX512BW has a test instruction to set a mask reg from an AND, so this isn't needed.
+ * see comments in the loop, since this works for the lowbit too, and is much better than PMUL
+ * This makes both of the following irrelevant, since this is slower than pinsrw until AVX512BW anyway.
+
+ * low-bit set -> a, else 0: (step 1):
+ *   use PMULLW instead of PCMPEQ+AND: masked_a = _mm_mullo_epi16(lsb_b, a);  # 1uop, 5 cycle latency
+ *   since 0*a = 0, and 1*a = a, this works because we're testing the low bit.
+ *   In practice, such a high latency requires interleave by more than 2,
+ *   And then insn alignment becomes an issue for getting 3 uops / cycle from the uop cache, I think.
+ *   (Worse on Haswell where execution units should sustain 4 uops / cycle, requiring max uop cache throughput)
+ *
+ * high-bit set -> generator, else 0: (step 3+5)
+ *  (not viable) Use a variable shift to get a masked_generator without a PCMPEQ,
+ *   directly from the highbits (0x8000 or 0x0000):
+ *   shift by more than 16bits will zero the reg, shift by zero does nothing.
+ *   PSLLW takes the same shift count for all vector components (src[63:0])
+ *   VPSLLVW doesn't exist until AVX512BW.  AVX2 only has D and Q sizes.
+ *    On Haswell, those take 3 uops anyway (lat=2, recip tput=2).  useless without fast vshift
+ */
