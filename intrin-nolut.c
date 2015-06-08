@@ -13,13 +13,37 @@
 #define FORCE_ALIGN16(x) (x)
 #endif
 
+#if 0
+__m256 glob_val;
+__m256i glob_vali;
+float * fptr;
+
+void bar(__m256i vec)
+{
+	__m256 tmp = _mm256_load_ps(fptr);
+	__m256i tmpi = _mm256_cvtps_epi32(tmp);
+	tmpi = _mm256_add_epi32(vec, tmpi);
+	glob_vali = tmpi;
+}
+
+void baz(__m256i vec);
+uint32_t foo(uint32_t factor)
+{
+	__m256i fac256_vec = _mm256_set1_epi16(factor);
+	baz(fac256_vec);
+	return factor * 2;
+}
+#endif
+
+
 static __m128i broadcast_word(uint16_t w)
 {
 	union floatint { uint32_t u; float f; } u;
 	u.u = ((uint32_t)w | w<<16);
-	return _mm_castps_si128(_mm_broadcast_ss(&u.f));	// AVX, but not AVX2
+	return _mm_castps_si128(_mm_broadcast_ss(&u.f));	// AVX without AVX2
 }
 //#define broadcast_word(x) _mm_broadcast_ss( (union floatint _f = ((uint32_t)x | x<<16);  )
+// #define broadcast_word(x) _mm_set1_epi16(x) // expands to 128b constants and uses vmovdqa when AVX2 isn't available
 
 void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t size, const uint32_t* LH)
 {
