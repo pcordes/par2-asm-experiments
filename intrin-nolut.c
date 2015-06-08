@@ -77,93 +77,50 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 #endif
 #endif
 #endif
+
 		// TODO: use b = factor, and find the position of its high bit to loop fewer than 16 times.
 		for (int bit = 0; bit < 16; bit++) {
-			// **** 1. if LSB of b is set, prod ^= a
-			// There is no variable-mask pblendvw, only byte-wise pblendvb
-			// (which would also require extending the mask), so just use PAND
-			__m128i msk0 = _mm_and_si128(b0, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-	#ifndef USE_PMUL
-			msk0 = _mm_cmpeq_epi16(msk0, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk0 = _mm_and_si128(msk0, a0);
-	#else
-			msk0 = _mm_mullo_epi16(msk0, a0);
-			// or use PMULLW instead of PCMPEQ+AND: masked_a = _mm_mullo_epi16(lsb_b, a);  # 1uop, 5 cycle latency
-			// since 0*a = 0, and 1*a = a, this works because we're testing the low bit.
-	#endif
-			prod0 = _mm_xor_si128(prod0, msk0);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
-			// AVX512:
-			/* __mmask32 mask0 = _mm512_test_epi16_mask (b0, lowbit_mask);
-			 * __mm512i masked_a0 = _mm512_maskz_mov_epi16(msk0, a0);
-			 * prod0 = _mm512_xor_si512(prod0, masked_a0);
-			 * counting both masked-xors in the inner loop, this saves two uops, and shortens dep chains from 4 to 3 cycles.
-			 *  // There is no prod0 = _mm512_mask_xor_epi16(prod0, a0, msk0); // only vpxord/q (epi32/64)
+
+#define BIT_ITER(prod, a, b, ID) \
+		do {						\
+			/* **** 1. if LSB of b is set, prod ^= a */	\
+			/* There is no variable-mask pblendvw, only byte-wise pblendvb */ \
+			/* (which would also require extending the mask), so just use PAND */ \
+			__m128i msk##ID = _mm_and_si128(b, lowbit_mask);	/* words with low bit set: 0x0001.  others: 0x0000 */ \
+			msk##ID = _mm_cmpeq_epi16(msk##ID, lowbit_mask); /* 0x1 words -> 0xffff.  0x0000 stays 0x0000. */ \
+			msk##ID = _mm_and_si128(msk##ID, a);		/* masked a */ \
+			/* or pmul instead */				\
+			prod = _mm_xor_si128(prod, msk##ID);   /* prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words */ \
+									\
+			/* ***** 2. b >>= 1 */				\
+			b = _mm_srli_epi16(b, 1);			\
+			/* ***** 3. carry = MSB(a) */			\
+			__m128i carry##ID = _mm_and_si128(a, highbit_mask); /* 0x8000 or 0x0000 */ \
+			carry##ID = _mm_cmpeq_epi16(carry##ID, highbit_mask);	/* same as lsb_b sequence to generate a mask of 0x0000 or 0xffff */ \
+									\
+			/* ***** 4. a <<= 1 */				\
+			a = _mm_slli_epi16(a, 1);			\
+			/* ***** 5. if (carry) a ^= generator_polynomial */ \
+			carry##ID = _mm_and_si128(carry##ID, generator);	/* masked generator */ \
+			a = _mm_xor_si128(a, carry##ID);	/* a ^= generator  for words that had a carry.  a ^= 0 (nop) others */ \
+		} while(0)
+			/* AVX512: generated masked vectors for conditional XOR:
+			 * replace and/cmpeq/and with:
+			 * __mmask32 mask = _mm512_test_epi16_mask (b, lowbit_mask);
+			 * __mm512i masked_a = _mm512_maskz_mov_epi16(msk, a);
+			 * prod = _mm512_xor_si512(prod, masked_a);
+			 * This saves 2 of 10 uops in the inner loop (total), and shortens dep chains from 4 to 3 cycles.
+			 *  // There is no prod = _mm512_mask_xor_epi16(prod, a, mask); // only vpxord/q (epi32/64)
 			 */
 
-			// ***** 2. b >>= 1
-			b0 = _mm_srli_epi16(b0, 1);
-			// 3. carry = MSB(a)
-			__m128i carry0 = _mm_and_si128(a0, highbit_mask); // 0x8000 or 0x0000
-			carry0 = _mm_cmpeq_epi16(carry0, highbit_mask);	// same as lsb_b sequence to generate a mask of 0x0000 or 0xffff
 
-			// 4. a <<= 1
-			a0 = _mm_slli_epi16(a0, 1);
-			// 5. if (carry) a ^= generator polynomial
-			carry0 = _mm_and_si128(carry0, generator);
-			a0 = _mm_xor_si128(a0, carry0);	// a ^= generator  for words that had a carry.  a ^= 0 (nop) others
-
+			BIT_ITER(prod0, a0, b0, 0);
 #if INTERLEAVE > 1	/*** 2nd dep chain ***/
-			__m128i msk1 = _mm_and_si128(b1, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-	#ifndef USE_PMUL
-			msk1 = _mm_cmpeq_epi16(msk1, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk1 = _mm_and_si128(msk1, a1);
-	#else
-			msk1 = _mm_mullo_epi16(msk1, a1);
-	#endif
-			prod1 = _mm_xor_si128(prod1, msk1);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
-			b1 = _mm_srli_epi16(b1, 1);
-			__m128i carry1 = _mm_and_si128(a1, highbit_mask); // 0x8000 or 0x0000
-			carry1 = _mm_cmpeq_epi16(carry1, highbit_mask);	// same as lsb_b sequence to generate a mask of 0x0000 or 0xffff
-			a1 = _mm_slli_epi16(a1, 1);
-			carry1 = _mm_and_si128(carry1, generator);
-			a1 = _mm_xor_si128(a1, carry1);	// a ^= generator  for words that had a carry.  a ^= 0 (nop) others
-
-
+			BIT_ITER(prod1, a1, b1, 1);
 #if INTERLEAVE > 2	/*** 3rd dep chain ***/
-			__m128i msk2 = _mm_and_si128(b2, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-			msk2 = _mm_cmpeq_epi16(msk2, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk2 = _mm_and_si128(msk2, a2);
-	#ifndef USE_PMUL
-			msk2 = _mm_cmpeq_epi16(msk2, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk2 = _mm_and_si128(msk2, a1);
-	#else
-			msk2 = _mm_mullo_epi16(msk2, a2);
-	#endif
-			prod2 = _mm_xor_si128(prod2, msk2);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
-			b2 = _mm_srli_epi16(b2, 1);
-			__m128i carry2 = _mm_and_si128(a2, highbit_mask); // 0x8000 or 0x0000
-			carry2 = _mm_cmpeq_epi16(carry2, highbit_mask);	// same as lsb_b sequence to generate a mask of 0x0000 or 0xffff
-			a2 = _mm_slli_epi16(a2, 1);
-			carry2 = _mm_and_si128(carry2, generator);
-			a2 = _mm_xor_si128(a2, carry2);	// a ^= generator  for words that had a carry.  a ^= 0 (nop) others
-
+			BIT_ITER(prod2, a2, b2, 2);
 #if INTERLEAVE > 3	/*** 4th dep chain ***/
-			__m128i msk3 = _mm_and_si128(b3, lowbit_mask);	// words with low bit set: 0x0001.  others: 0x0000
-			msk3 = _mm_cmpeq_epi16(msk3, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk3 = _mm_and_si128(msk3, a3);
-	#ifndef USE_PMUL
-			msk3 = _mm_cmpeq_epi16(msk3, lowbit_mask); // 0x1 words -> 0xffff.  0x0000 stays 0x0000.
-			msk3 = _mm_and_si128(msk3, a3);
-	#else
-			msk3 = _mm_mullo_epi16(msk3, a3);
-	#endif
-			prod3 = _mm_xor_si128(prod3, msk3);  // prod ^= a  only for words where LSB(b) = 1.  prod ^= 0 for other words
-			b3 = _mm_srli_epi16(b3, 1);
-			__m128i carry3 = _mm_and_si128(a3, highbit_mask); // 0x8000 or 0x0000
-			carry3 = _mm_cmpeq_epi16(carry3, highbit_mask);	// same as lsb_b sequence to generate a mask of 0x0000 or 0xffff
-			a3 = _mm_slli_epi16(a3, 1);
-			carry3 = _mm_and_si128(carry3, generator);
-			a3 = _mm_xor_si128(a3, carry3);	// a ^= generator  for words that had a carry.  a ^= 0 (nop) others
+			BIT_ITER(prod3, a3, b3, 3);
 #endif	// INTERLEAVE > 3
 #endif	// INTERLEAVE > 2
 #endif	// INTERLEAVE > 1
