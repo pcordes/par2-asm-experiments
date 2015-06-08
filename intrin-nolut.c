@@ -2,7 +2,7 @@
 #include <emmintrin.h>
 #include <immintrin.h> // vzeroupper
 #include <stdint.h>
-// #include <stddef.h> // ptrdiff_t
+#include <stddef.h> // ptrdiff_t
 #include "asm-test.h"
 
 // #define FORCE_ALIGN16(x) (void*)(  ((ptrdiff_t)x) & ~(ptrdiff_t)0x0f  )
@@ -50,7 +50,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 	// peasant's algorithm: https://en.wikipedia.org/wiki/Finite_field_arithmetic#Multiplication
 	// maintain the invariant a * b + prod = product
 
-	_mm256_zeroupper();
+//	_mm256_zeroupper();
 //	prefetchT0      (%rdi)
 	const __m128i *src = srcvoid;
 	__m128i *dst = dstvoid;
@@ -63,7 +63,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 	 * The wikipedia example for GF8 uses a truncated generator.  (0x1b instead of 0x11b)
 	 */
 	__m128i generator = broadcast_word((uint16_t)0x1100BU);
-	uint16_t factor = LH[5];
+	uint16_t factor = (uint16_t) ((ptrdiff_t)LH);	// FIXME: take a factor arg, rather than using low16 of LH pointer
 	__m128i factor_vec = broadcast_word(factor); // broadcast(factor);	// movd / pshufd $0  to broadcast without a pshufb control mask reg
 
 	__m128i lowbit_mask = broadcast_word(0x0001);
@@ -77,7 +77,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 	#define INTERLEAVE 4
 #endif
 
-	for (size_t i = 0; i < size/sizeof(factor_vec) ; i+=INTERLEAVE) {
+	for (ptrdiff_t i = 0; i < size/sizeof(factor_vec) ; i+=INTERLEAVE) {
 		__m128i s0 = _mm_loadu_si128(src + i);
 		__m128i prod0 = _mm_setzero_si128 ();
 		__m128i a0 = factor_vec;
