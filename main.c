@@ -14,6 +14,17 @@
  *
  */
 
+/*
+ * optimized rs_process implementation:
+ *  With AVX512, nolut version may be optimal for all factors
+ *  With only AVX or AVX2: count leading zeros of factor.
+ *   dispatch to nolut version If the highest set bit isn't too high,
+ *   else dispatch to a LUT version
+ *  With hyperthreading, mixing LUT and non-LUT is probably ideal, to keep the load ports utilized.
+ *  Without AVX 3-operand versions of things, nolut will require a couple extra mov instructions.
+ *
+ */
+
 
 #include <unistd.h>	// getopt
 #include <stdlib.h>	// atoi
@@ -163,7 +174,7 @@ int main (int argc, char *argv[])
 	_mm256_zeroupper();
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
 	_mm256_zeroupper();
-	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+//	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	_mm256_zeroupper();
 	puts ("----------------");
 
@@ -197,7 +208,7 @@ int main (int argc, char *argv[])
 
 	puts ("----------------");
 	_mm256_zeroupper();
-	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+//	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	_mm256_zeroupper();
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 	_mm256_zeroupper();
