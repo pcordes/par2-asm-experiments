@@ -10,7 +10,13 @@
 	# freeing up more low regs would seem to require more prologue to shuffle rsi and rdi
 	# so don't bother unless optimizing for something without a uop cache
 	# or could use rax or rbx, but then we'd lose the nice readability, and get mov %ch, %rbp or something
-
+	pxor	%xmm0, %xmm0
+	xorps	%xmm0, %xmm0
+	xorpd	%xmm0, %xmm0
+	vpxor	%xmm0, %xmm0, %xmm0
+	vxorps	%xmm0, %xmm0, %xmm0
+	vxorpd	%xmm0, %xmm0, %xmm0
+#	movzwl	%eax, %eax
 
 	.align 16
 	.globl rs_process_uoptest
