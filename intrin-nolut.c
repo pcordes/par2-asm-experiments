@@ -193,10 +193,10 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 }
 
 /*
- * on Haswell, with 4 exec units to match 4 dispatch / cycle:
- * 10 AVX / AVX2 / AVX512 insns per GF bit -> 2.5 cycles per bit of the GF16
+ * on Haswell, 4 dispatch, still only exec units that can do vector ALU uops.  (p015, not p6):
+ * 10 AVX / AVX2 / AVX512 insns per GF bit -> 3.33 cycles per bit of the GF16
  * 16 / 32 / 64B at a time.  (avx1 lacks _mm256_srli_epi16, which is a showstopper.  no equiv like andps %ymm)
- * 2.5 / 1.25 / 0.625 cycles per source byte
+ * 3.33 / 1.66 / 0.833 cycles per source byte.  (when factor requires all 16 iterations: high bit set.)
  */
 
 /*
