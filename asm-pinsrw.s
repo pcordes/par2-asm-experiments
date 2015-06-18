@@ -63,6 +63,12 @@ rs_process_pinsrw128:
 
 # mm5: previous value of dest
 
+#IACA
+#mov ebx, 111
+#db 0x64, 0x67, 0x90
+mov $111, %ebx
+.byte 0x64, 0x67, 0x90
+
 	.align	32
 .loop:
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
@@ -132,6 +138,10 @@ rs_process_pinsrw128:
 	# handle final iteration separately (so that a read beyond the end of the input/output buffer is avoided)
 	#
 .last8:
+#IACA ;END_MARKER
+mov $222, %ebx
+.byte 0x64, 0x67, 0x90
+
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
 	# still using the longer-dep-chain PINSRW all the way, instead of 2 chains and punpck Q->DQ
 	# TODO: update last iter code to whatever proves fastest in the loop, with loads for next iter commented out

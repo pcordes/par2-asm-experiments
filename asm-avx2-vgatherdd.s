@@ -169,6 +169,10 @@ rs_process_vgather_align32:
 	vpshufd		 $0x4e, %ymm13, %ymm14	# rotate the shuffle mask to pack results to the other end
 	# 01 00 11 10 -> $0x4e: swap the upper/lower 64b
 
+# IACA start
+mov $111, %ebx
+.byte 0x64, 0x67, 0x90
+
 	.align 32
 Lgather256full:
 	vmovdqu 0(%rsi), %ymm5			# 32byte loads of src data
@@ -230,6 +234,10 @@ Lgather256full:
 	add $32, %rdi
 	sub $32, %rdx
 	jg Lgather256full
+
+#IACA ;END_MARKER
+mov $222, %ebx
+.byte 0x64, 0x67, 0x90
 
 	pop %rbx
 	pop %rbp
