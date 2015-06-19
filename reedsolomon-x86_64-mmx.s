@@ -43,6 +43,11 @@ rs_process_x86_64_mmx:
 # mm4-7: src 4..7
 	.align	32
 loop:
+#IACA
+#mov ebx, 111
+#db 0x64, 0x67, 0x90
+mov $111, %ebx
+.byte 0x64, 0x67, 0x90
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	movd		0x0000(%rbp, %rax, 4), %mm0
@@ -108,6 +113,9 @@ loop:
 
 	add			$16, %r8
 	jnz			loop
+#IACA ;END_MARKER
+mov $222, %ebx
+.byte 0x64, 0x67, 0x90
 
 	#
 	# handle final iteration separately (so that a read beyond the end of the input/output buffer is avoided)
@@ -155,3 +163,42 @@ last8:
 #	pop			%rsi
 	pop			%rbp
 	ret
+
+#IACA
+#mov ebx, 111
+#db 0x64, 0x67, 0x90
+mov $111, %ebx
+.byte 0x64, 0x67, 0x90
+	# IACA says punpck can micro-fuse into one uop with a memory address,
+	# but only with a single-register addressing mode.
+	# Unless we can scale the source bytes by 2 or 4 (to be LUT indices) without using an extra instruction
+	# beyond the shifts and movzx, then there's no advantage to punpck over pinsrw.
+
+	# movd is a single uop, even with a complex addressing mode, so it's still useful to do more movd
+	# and less pinsrw, as long as we don't add more uops to merge the registers
+	punpckldq	0x0400(%rbp, %rax), %mm0	# 2 uops
+	punpckldq	(%rax, %rbx), %mm0		# 2 uops
+#	punpckldq	loop(%rax,4), %mm0		# nope, doesn't work
+	punpckldq	0x0(%rbp), %mm0			# 1 uop (micro-fused)
+	punpckldq	(%rax), %mm0			# 1 uop (micro-fused)
+	punpckldq	0x0400(%rax), %mm0		# 1 uop (micro-fused)
+	pinsrw		$2, 0x0000(%rsi, %rax, 4), %xmm2 # 2 uops
+	pinsrw		$2, 0x0000(%rdi, %rbx, 4), %xmm3 # 2 uops
+	pinsrw		$2, 0x0000(%rax), %xmm2		# 2 uops
+	pinsrw		$2, 0x0400(%rbx), %xmm3		# 2 uops
+	pinsrw		$2, loop, %xmm3			# 2 uops
+
+	movq		%mm1, 0(%rdi, %r8, 1)		# store: 2 uops
+	movq		%mm1, 0(%rdi)			# store: 1 uop (micro-fused)
+	movq		%mm1, 0+loop			# store: 1 uop (micro-fused)
+	movq		%xmm1, 0(%rdi, %r8, 1)		# store: 2 uops
+	movq		%xmm1, 0(%rdi)			# store: 1 uop (micro-fused)
+	movq		%xmm1, 0+loop			# store: 1 uop (micro-fused)
+
+	movq		16(%rsi, %r8), %rdx		# 1 uop (no fusion)
+	movd		0x0400(%rbp, %rbx, 4), %mm1	# 1 uop (no fusion)
+
+
+#IACA ;END_MARKER
+mov $222, %ebx
+.byte 0x64, 0x67, 0x90
