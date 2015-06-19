@@ -91,13 +91,15 @@ typedef void SYSV_ABI (rs_procfunc_t) (void* , const void*, size_t , const uint3
 static uint64_t time_rs(rs_procfunc_t *fn, void* dst, const void* src, size_t size, const uint32_t* LH)
 {
 	uint64_t starttime, stoptime;
+
+	_mm256_zeroupper();
 	starttime = rdtsc();
 	const int maxiter = ITERS;
 	for (int c=0 ; c<maxiter ; c++) {
 		fn(dst, src, size, LH);
 	}
-
 	stoptime = rdtsc();
+	_mm256_zeroupper();
 	return stoptime - starttime;
 }
 
@@ -161,61 +163,38 @@ int main (int argc, char *argv[])
 
 	printf("LH = %p.  size=%" PRIu64 "\n", LH, size);
 
-	_mm256_zeroupper();
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("dummy         ", rs_dummy, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 //	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 //	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	puts ("----------------");
 
 	for (int i=0 ; i<3 ; i++) {
 		_mm256_zeroupper();
 		time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 //		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 //		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("pinsrw-nodep  ", rs_process_pinsrw_nodep, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
-		_mm256_zeroupper();
 
 		// fflush(stdout);
 		if (HAVE_AVX2) {
 			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
-			_mm256_zeroupper();
 			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
-			_mm256_zeroupper();
 		}
 	}
 
 	puts ("----------------");
-	_mm256_zeroupper();
 //	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
-	_mm256_zeroupper();
 //	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
 
