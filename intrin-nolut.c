@@ -85,7 +85,6 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 #endif
 
 	for (ptrdiff_t i = 0; i < size/sizeof(factor_vec) ; i+=INTERLEAVE) {
-	IACA_START
 		__m128i s0 = _mm_loadu_si128(src + i);
 		__m128i prod0 = _mm_setzero_si128 ();
 		__m128i a0 = factor_vec;
@@ -112,6 +111,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 
 		// TODO: use b = factor, and find the position of its high bit to loop fewer than 16 times.
 		for (int bit = 0; bit < 16; bit++) {
+	IACA_START
 
 #define BIT_ITER(prod, a, b, ID) \
 		do {						\
@@ -164,6 +164,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			// jz DONE...	     # 1 uop.  Branch mispredict is fine with hyperthreading, otherwise bad.
 			// even less convenient when interleaving multiple dependency chains...
 		}
+	IACA_END
 
 		// d = _mm_loadl_epi128(dst + i);
 		__m128i d0 = _mm_xor_si128(prod0, dst[i]);
@@ -187,7 +188,6 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 #endif
 #endif
 	}
-	IACA_END
 
 //	_mm256_zeroupper();
 }
