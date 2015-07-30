@@ -5,11 +5,11 @@
 #include <stddef.h> // ptrdiff_t
 #include "asm-test.h"
 
-#if 1
-  #include <iacaMarks.h>
-#else
+#ifdef IACA_MARKS_OFF
   #define IACA_START
   #define IACA_END
+#else
+  #include <iacaMarks.h>
 #endif
 
 // #define FORCE_ALIGN16(x) (void*)(  ((ptrdiff_t)x) & ~(ptrdiff_t)0x0f  )

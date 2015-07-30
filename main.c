@@ -5,7 +5,9 @@
  *
  * compile with:
  *  x86_64-w64-mingw32-gcc to make a.exe
- * gcc -g -Wall -march=native -funroll-loops -O3 -std=gnu11 main.c process-purec.c intrin-nolut.c reedsolomon-x86_64-mmx.s reedsolomon-x86_64-mmx-orig.s asm-avx2-vgatherdd.s intrin-pinsrw.c asm-pinsrw*.s
+ *
+ * gcc -DIACA_MARKS_OFF -o rs-asmbench -g -Wall -march=native -funroll-loops -O3 -std=gnu11 main.c process-purec.c intrin-nolut.c reedsolomon-x86_64-mmx.s reedsolomon-x86_64-mmx-orig.s asm-avx2-vgatherdd.s intrin-pinsrw.c asm-pinsrw*.s
+ * some ASM files have IACA marks in them, but the illegal-instruction code is only illegal for 32bit code.
  *
  * run with:
  * ./a.out -a 60
