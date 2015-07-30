@@ -171,7 +171,7 @@ int main (int argc, char *argv[])
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
 //	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
-//	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	puts ("----------------");
 
 	for (int i=0 ; i<3 ; i++) {
@@ -182,7 +182,8 @@ int main (int argc, char *argv[])
 //		time_rs_print ("pinsrw64      ", rs_process_pinsrw64, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw-nodep  ", rs_process_pinsrw_nodep, dstbuf, srcbuf, size, LH);
-		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
+		time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
+//		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
 		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
 
 		// fflush(stdout);
