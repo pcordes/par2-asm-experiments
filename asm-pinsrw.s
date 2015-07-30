@@ -63,8 +63,8 @@ rs_process_pinsrw128:
 
 # mm5: previous value of dest
 
-#IACA
-#mov ebx, 111
+
+#mov ebx, 111		; IACA start
 #db 0x64, 0x67, 0x90
 mov $111, %ebx
 .byte 0x64, 0x67, 0x90
