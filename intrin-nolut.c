@@ -137,7 +137,7 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 			a = _mm_xor_si128(a, carry##ID);	/* a ^= generator  for words that had a carry.  a ^= 0 (nop) others */ \
 		} while(0)
 			/* AVX512: generated masked vectors for conditional XOR:
-			 * replace and/cmpeq/and with:
+			 * replace and/cmpeq/and/xor with:
 			 * __mmask32 mask = _mm512_test_epi16_mask (b, lowbit_mask);
 			 * __mm512i masked_a = _mm512_maskz_mov_epi16(msk, a);
 			 * prod = _mm512_xor_si512(prod, masked_a);
@@ -194,9 +194,10 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
 
 /*
  * on Haswell, 4 dispatch, still only exec units that can do vector ALU uops.  (p015, not p6):
- * 10 AVX / AVX2 / AVX512 insns per GF bit -> 3.33 cycles per bit of the GF16
+ * 10 AVX / 10 AVX2 / 8 AVX512 insns per GF bit
  * 16 / 32 / 64B at a time.  (avx1 lacks _mm256_srli_epi16, which is a showstopper.  no equiv like andps %ymm)
- * 3.33 / 1.66 / 0.833 cycles per source byte.  (when factor requires all 16 iterations: high bit set.)
+ * 3.33 / 1.66 / 0.666 cycles per source byte.  (when factor requires all 16 iterations: high bit set.)
+ * (AVX512BW saves 2 uops with test / maskz_mov.)
  */
 
 /*
@@ -221,14 +222,15 @@ void SYSV_ABI rs_process_nolut_intrin(void* dstvoid, const void* srcvoid, size_t
  * optimizations:
  * AVX512BW has a test instruction to set a mask reg from an AND, so this isn't needed.
  * see comments in the loop, since this works for the lowbit too, and is much better than PMUL
- * This makes both of the following irrelevant, since this is slower than pinsrw until AVX512BW anyway.
+ * nolut is only faster than than the pinsrw loop with AVX512BW, except when factor has few significant bits,
+ * so these aren't very useful.
 
  * low-bit set -> a, else 0: (step 1):
  *   use PMULLW instead of PCMPEQ+AND: masked_a = _mm_mullo_epi16(lsb_b, a);  # 1uop, 5 cycle latency
  *   since 0*a = 0, and 1*a = a, this works because we're testing the low bit.
  *   In practice, such a high latency requires interleave by more than 2,
  *   And then insn alignment becomes an issue for getting 3 uops / cycle from the uop cache, I think.
- *   (Worse on Haswell where execution units should sustain 4 uops / cycle, requiring max uop cache throughput)
+ *   (Haswell only has vector execution units on 3 of its 4 ALU ports, so still only 3/cycle)
  *
  * high-bit set -> generator, else 0: (step 3+5)
  *  (not viable) Use a variable shift to get a masked_generator without a PCMPEQ,
