@@ -43,26 +43,29 @@ void SYSV_ABI rs_process_pinsrw_intrin(void* dstvoid, const void* srcvoid, size_
 		__m128i l0 = _mm_cvtsi32_si128( L[ LO(s0)] );		// movd the lookup for the l/h byte of the first word
 		__m128i h0 = _mm_cvtsi32_si128( H[ HI(s0)] );
 		s0 >>= 16;
-		__m128i l1 = _mm_cvtsi32_si128( L[ LO(s1)] );
-		__m128i h1 = _mm_cvtsi32_si128( H[ HI(s1)] );
-		s1 >>= 16;
-
 		l0 = _mm_insert_epi16(l0, L[ LO(s0)], 1);
 		h0 = _mm_insert_epi16(h0, H[ HI(s0)], 1);
 		s0 >>= 16;
-		l1 = _mm_insert_epi16(l1, L[ LO(s1)], 1);
-		h1 = _mm_insert_epi16(h1, H[ HI(s1)], 1);
+
+		__m128i l1 = _mm_cvtsi32_si128( L[ LO(s1)] );
+		__m128i h1 = _mm_cvtsi32_si128( H[ HI(s1)] );
 		s1 >>= 16;
 
 		l0 = _mm_insert_epi16(l0, L[ LO(s0)], 2);
 		h0 = _mm_insert_epi16(h0, H[ HI(s0)], 2);
 		s0 >>= 16;
-		l1 = _mm_insert_epi16(l1, L[ LO(s1)], 2);
-		h1 = _mm_insert_epi16(h1, H[ HI(s1)], 2);
+
+		l1 = _mm_insert_epi16(l1, L[ LO(s1)], 1);
+		h1 = _mm_insert_epi16(h1, H[ HI(s1)], 1);
 		s1 >>= 16;
 
 		l0 = _mm_insert_epi16(l0, L[ LO(s0)], 3);
 		h0 = _mm_insert_epi16(h0, H[ HI(s0)], 3);
+
+		l1 = _mm_insert_epi16(l1, L[ LO(s1)], 2);
+		h1 = _mm_insert_epi16(h1, H[ HI(s1)], 2);
+		s1 >>= 16;
+
 		l1 = _mm_insert_epi16(l1, L[ LO(s1)], 3);
 		h1 = _mm_insert_epi16(h1, H[ HI(s1)], 3);
 #undef LO
