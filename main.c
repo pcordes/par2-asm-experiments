@@ -10,9 +10,10 @@
  * some ASM files have IACA marks in them, but the illegal-instruction code is only illegal for 32bit code.
  *
  * run with:
- * ./a.out -a 60
+ * ./rs-asmbench
+ * or ./rs-asmbench -a 60   # all table lookups are aligned to byte 60 within a 64B cache line
  * or (pin to CPU core #3)
- * taskset 0x04 ./a.out -a 60 && grep MHz /proc/cpuinfo
+ * taskset 0x04 ./rs-asmbench  && grep MHz /proc/cpuinfo
  *
  */
 
@@ -77,8 +78,13 @@ void SYSV_ABI rs_process_uoptest(void* dst, const void* src, size_t size, const 
 // rs_process_pinsrw_intrin
 void SYSV_ABI rs_dummy(void* dst, const void* src, size_t size, const uint32_t* LH) { }
 
-
+#if 0
+#define ONE_ALGO_ONLY
+#define ITERS 1000
+#else
 #define ITERS 100
+#endif
+
 #define BUFSIZE (1024*1024)
 //#define BUFSIZE (1024*64*16*64)
 //#define BUFSIZE (1024*8)
@@ -165,6 +171,7 @@ int main (int argc, char *argv[])
 
 	printf("LH = %p.  size=%" PRIu64 "\n", LH, size);
 
+#ifndef ONE_ALGO_ONLY
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
 	time_rs_print ("dummy         ", rs_dummy, dstbuf, srcbuf, size, LH);
@@ -173,9 +180,10 @@ int main (int argc, char *argv[])
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
 	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	puts ("----------------");
-
+#endif
 	for (int i=0 ; i<3 ; i++) {
 		_mm256_zeroupper();
+#ifndef ONE_ALGO_ONLY
 		time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
 //		time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
 		time_rs_print ("pinsrw-mmx    ", rs_process_pinsrw_mmx, dstbuf, srcbuf, size, LH);
@@ -186,7 +194,9 @@ int main (int argc, char *argv[])
 		time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 //		time_rs_print ("uoptest       ", rs_process_uoptest, dstbuf, srcbuf, size, LH);
 		time_rs_print ("nolut AVX     ", rs_process_nolut_intrin, dstbuf, srcbuf, size, LH);
-
+#else
+		time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
+#endif
 		// fflush(stdout);
 		if (HAVE_AVX2) {
 			time_rs_print ("AVX2 vgather  ", rs_process_vgather_align32, dstbuf, srcbuf, size, LH);
@@ -195,12 +205,13 @@ int main (int argc, char *argv[])
 	}
 
 	puts ("----------------");
+#ifndef ONE_ALGO_ONLY
 //	time_rs_print ("Pure C        ", rs_process_purec, dstbuf, srcbuf, size, LH);
 	time_rs_print ("pinsrw128     ", rs_process_pinsrw128, dstbuf, srcbuf, size, LH);
 	time_rs_print ("orig MMX-unpck", rs_process_x86_64_mmx_orig, dstbuf, srcbuf, size, LH);
 	time_rs_print ("MMX w/ 64b rdx", rs_process_x86_64_mmx, dstbuf, srcbuf, size, LH);
 //	time_rs_print ("pinsrw-intrin ", rs_process_pinsrw_intrin, dstbuf, srcbuf, size, LH);
 //	time_rs_print ("pinsrw-unpipe ", rs_process_pinsrw_unpipelined, dstbuf, srcbuf, size, LH);
-
+#endif
 	return 0;
 }
