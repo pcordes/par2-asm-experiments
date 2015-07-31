@@ -138,8 +138,8 @@ mov $111, %ebx
 	# handle final iteration separately (so that a read beyond the end of the input/output buffer is avoided)
 	#
 .last8:
-#IACA ;END_MARKER
-mov $222, %ebx
+
+mov $222, %ebx  #IACA ;END_MARKER
 .byte 0x64, 0x67, 0x90
 
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
