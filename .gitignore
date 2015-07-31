@@ -1,5 +1,6 @@
 a.*
 *.out
+rs-asmbench
 
 *.gcda
 *.gcno
