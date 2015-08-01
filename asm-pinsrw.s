@@ -47,7 +47,7 @@ rs_process_pinsrw128:
 #	prefetchT0       64(%rbp)
 #	prefetch0       128(%rbp)					# is it worth prefetching a lot, to trigger HW prefetch?  nvm, on Core, HW and SW prefetch aren't linked
 	add			%r11, %rbp						# point to last set of 8-bytes of input
-	add			%r11, %r10						# point to last set of 8-bytes of output
+#	add			%r11, %r10						# point to last set of 8-bytes of output
 	neg			%r11							# convert byte size to count-up
 
 # %r10		# destination (function arg comes in in %rdi)
@@ -128,10 +128,11 @@ rs_process_pinsrw128:
 
 #	movq		(%r10, %r11), %xmm5
 #	pxor		%xmm5, %xmm0
-	pxor		(%r10, %r11), %xmm0
-	movdqu		%xmm0, (%r10, %r11)
+	pxor		(%r10), %xmm0  ## (%r10, %r11)   # counting-up version can't micro-fuse on SnB and later
+	movdqu		%xmm0, (%r10)  ## (%r10, %r11)
 #	movq		%xmm0, (%r10, %r11)
 
+	add			$16, %r10   # with this insn commented out, the micro-fusion version is faster.  Else slower.  Maybe dest cache effects
 	add			$16, %r11
 	jnz			.loop
 
@@ -196,8 +197,8 @@ rs_process_pinsrw128:
 
 #	movq		0(%r10, %r11, 1), %xmm5
 #	pxor		%xmm5, %xmm1
-	pxor		(%r10, %r11), %xmm1
-	movdqu		%xmm1, 0(%r10, %r11, 1)
+	pxor		(%r10), %xmm0  ## (%r10, %r11)   # counting-up version can't micro-fuse
+	movdqu		%xmm0, (%r10)  ## (%r10, %r11)
 #	movq		%xmm1, 0(%r10, %r11, 1)
 
 #	pop			%r15
