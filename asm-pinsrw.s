@@ -66,8 +66,8 @@ rs_process_pinsrw128:
 
 #mov ebx, 111		; IACA start
 #db 0x64, 0x67, 0x90
-mov $111, %ebx
-.byte 0x64, 0x67, 0x90
+#mov $111, %ebx          # IACA start
+#.byte 0x64, 0x67, 0x90
 
 	.align	32
 .loop:
@@ -140,8 +140,8 @@ mov $111, %ebx
 	#
 .last8:
 
-mov $222, %ebx  #IACA ;END_MARKER
-.byte 0x64, 0x67, 0x90
+#mov $222, %ebx  #IACA ;END_MARKER
+#.byte 0x64, 0x67, 0x90
 
 	# do 16 bytes of data per iter, with two 8B loads of src data per 16B load/store of dest data
 	# still using the longer-dep-chain PINSRW all the way, instead of 2 chains and punpck Q->DQ
