@@ -78,11 +78,13 @@ void SYSV_ABI rs_process_uoptest(void* dst, const void* src, size_t size, const 
 // rs_process_pinsrw_intrin
 void SYSV_ABI rs_dummy(void* dst, const void* src, size_t size, const uint32_t* LH) { }
 
-#if 0
-#define ONE_ALGO_ONLY
-#define ITERS 1000
+#ifdef PERF_ONE
+  #define ONE_ALGO_ONLY
+  #define ITERS 1000
 #else
-#define ITERS 100
+  #ifndef ITERS
+    #define ITERS 100
+  #endif
 #endif
 
 #define BUFSIZE (1024*1024)
