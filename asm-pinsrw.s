@@ -12,8 +12,8 @@
 	# or could use rax or rbx, but then we'd lose the nice readability, and get mov %ch, %rbp or something
 
 
-	.align 16
 	.text
+	.align 16
 	.globl rs_process_pinsrw128
 rs_process_pinsrw128:
 #	rs_process_pinsrw128(void* dst (%rdi), const void* src (%rsi), size_t size (%rdx), const u16* LH (%rcx));
@@ -80,6 +80,7 @@ mov $111, %ebx
 	movd		0x0000(%rdi, %rbx, 4), %xmm1		# use movd over pinsrw anyway, to break the dependency chain.  (and one less uop)
 
 	# it seems to be a slowdown to rearrange things to alternate rdx and rcx blocks.  Maybe having a movd block after a pinsrw block is good?
+	# scheduling for 2-1-1 decoding is a tiny slowdown on Sandybridge (with uop cache).  Haven't tested on Nehalem
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
 	shr			$16, %rdx
