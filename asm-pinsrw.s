@@ -82,8 +82,8 @@ mov $111, %ebx
 	# it seems to be a slowdown to rearrange things to alternate rdx and rcx blocks.  Maybe having a movd block after a pinsrw block is good?
 	movzx		%dl, %eax
 	movzx		%dh, %ebx
-	shr			$16, %rdx
 	pinsrw		$1, 0x0000(%rsi, %rax, 4), %xmm0
+	shr			$16, %rdx
 	 movzx		%cl, %eax
 	pinsrw		$1, 0x0000(%rdi, %rbx, 4), %xmm1
 
@@ -93,11 +93,11 @@ mov $111, %ebx
 	 movd		0x0000(%rdi, %rbx, 4), %xmm3		# but movd is cheaper than pinsrw.  No net uop diff.  (It is slightly faster)
 
 	movzx		%dl, %eax
-	movzx		%dh, %ebx
 	pinsrw		$2, 0x0000(%rsi, %rax, 4), %xmm0
+	movzx		%dh, %ebx
 	 movzx		%cl, %eax
-	shr			$16, %rdx
 	pinsrw		$2, 0x0000(%rdi, %rbx, 4), %xmm1
+	shr			$16, %rdx
 
 	 movzx		%ch, %ebx
 	 pinsrw		$1, 0x0000(%rsi, %rax, 4), %xmm2
@@ -112,10 +112,10 @@ mov $111, %ebx
 
 	 movzx		%ch, %ebx
 	 shr			$16, %rcx
-		movq		16(%rbp, %r11), %rdx			# read-ahead for next iter
 	 pinsrw		$2, 0x0000(%rsi, %rax, 4), %xmm2
-	 pinsrw		$2, 0x0000(%rdi, %rbx, 4), %xmm3
+		movq		16(%rbp, %r11), %rdx			# read-ahead for next iter
 	 movzx		%cl, %eax
+	 pinsrw		$2, 0x0000(%rdi, %rbx, 4), %xmm3
 	 movzx		%ch, %ebx
 	pxor		%xmm1, %xmm0
 	 pinsrw		$3, 0x0000(%rsi, %rax, 4), %xmm2
